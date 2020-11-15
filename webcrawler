@@ -8,15 +8,15 @@ import sys
 username = sys.argv[1]
 password = sys.argv[2]
 
+# Login page
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host_ip = socket.gethostbyname('www.3700.network')
 s.connect((host_ip, 80))
 
-GET_request = "GET /accounts/login/?next=/fakebook/ HTTP/1.0\r\nHost: www.3700.network\r\nConnection: keep-alive\r\n\r\n"
+GET_request = "GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: www.3700.network\r\nConnection: keep-alive\r\n\r\n"
 s.send(GET_request.encode("ascii"))
 
 resp = s.recv(4096)
-#parser = resp.decode("ascii")
 print(resp.decode("ascii"))
 resp = resp.decode("ascii").split(" ")
 token = ""
@@ -32,28 +32,30 @@ print("TOKEN", token, "sessionid", sessionid)
 s.shutdown(socket.SHUT_RDWR)
 s.close()
 
+# Attempt to login
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host_ip = socket.gethostbyname('www.3700.network')
 s.connect((host_ip, 80))
 
-#submit_form_req = "POST /accounts/login/?username=%s&password=%s&csrfmiddlewaretoken=%s&next=/fakebook/ HTTP/1.0\r\nHost: www.3700.network\r\nCookie: csrftoken=%s; sessionid=%s\r\nConnection: keep-alive\r\nContent-Type: application/x-www.form-urlencoded\r\nContent-Length: 107\r\n\r\n" % (username, password, token, token, sessionid)
-
-#submit_form_req = "POST /accounts/login/ HTTP/1.0\r\nHost: www.3700.network\r\nCookie: csrftoken=%s; sessionid=%s\r\nConnection: keep-alive\r\n\r\n" % (token, sessionid)
-
-submit_form_req = "POST /accounts/login/ HTTP/1.0\r\nHost: www.3700.network\r\nContent-Length: 107\r\nContent-Type: application/x-www.form-urlencoded\r\nCookie: csrftoken=%s; sessionid=%s\r\nusername=%s&password=%s&csrfmiddlewaretoken=%s\r\n\r\n" % (token, sessionid, username, password, token)
-
+submit_form_req = "POST /accounts/login/ HTTP/1.1\r\nHost: www.3700.network\r\nContent-Length: 107\r\nContent-Type: application/x-www.form-urlencoded\r\nCookie: csrftoken=%s; sessionid=%s\r\n\r\nusername=%s&password=%s&csrfmiddlewaretoken=%s&next=%%2Ffakebook%%2F" % (token, sessionid, username, password, token)
 
 print(submit_form_req)
 s.send(submit_form_req.encode("ascii"))
-#print("asdfasdf", s.recv(4096).decode("ascii"), "asdfasdf")
+resp = s.recv(4096).decode("ascii")
 s.shutdown(socket.SHUT_RDWR)
 s.close()
+
+resp = resp.split(" ")
+for word in resp:
+    if "sessionid=" in word:
+        sessionid = word[10:-1]
+
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host_ip = socket.gethostbyname('www.3700.network')
 s.connect((host_ip, 80))
 
-#GET_request = "GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: www.3700.network\r\nConnection: keep-alive\r\n\r\n"
-GET_request = "GET /fakebook/ HTTP/1.0\r\nHost: www.3700.network\r\nCookie: csrftoken=%s; sessionid=%s\r\n\r\n" % (token, sessionid)
+# Go to home page
+GET_request = "GET /fakebook/ HTTP/1.1\r\nHost: www.3700.network\r\nCookie: csrftoken=%s; sessionid=%s\r\n\r\n" % (token, sessionid)
 print("GET REquest", GET_request)
 s.send(GET_request.encode("ascii"))
 
