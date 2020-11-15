@@ -7,6 +7,8 @@ import sys
 
 username = sys.argv[1]
 password = sys.argv[2]
+flags = []
+totalLinks = []
 
 # Login page
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -17,7 +19,7 @@ GET_request = "GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: www.3700.n
 s.send(GET_request.encode("ascii"))
 
 resp = s.recv(4096)
-print(resp.decode("ascii"))
+#print(resp.decode("ascii"))
 resp = resp.decode("ascii").split(" ")
 token = ""
 sessionid = ""
@@ -28,7 +30,7 @@ for i, word in enumerate(resp):
     if "sessionid=" in word:
         sessionid = word[10:-1]
 
-print("TOKEN", token, "sessionid", sessionid)
+#print("TOKEN", token, "sessionid", sessionid)
 s.shutdown(socket.SHUT_RDWR)
 s.close()
 
@@ -39,7 +41,7 @@ s.connect((host_ip, 80))
 
 submit_form_req = "POST /accounts/login/ HTTP/1.1\r\nHost: www.3700.network\r\nContent-Length: 107\r\nContent-Type: application/x-www.form-urlencoded\r\nCookie: csrftoken=%s; sessionid=%s\r\n\r\nusername=%s&password=%s&csrfmiddlewaretoken=%s&next=%%2Ffakebook%%2F" % (token, sessionid, username, password, token)
 
-print(submit_form_req)
+#print(submit_form_req)
 s.send(submit_form_req.encode("ascii"))
 resp = s.recv(4096).decode("ascii")
 s.shutdown(socket.SHUT_RDWR)
@@ -51,14 +53,82 @@ for word in resp:
         sessionid = word[10:-1]
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-host_ip = socket.gethostbyname('www.3700.network')
 s.connect((host_ip, 80))
 
 # Go to home page
 GET_request = "GET /fakebook/ HTTP/1.1\r\nHost: www.3700.network\r\nCookie: csrftoken=%s; sessionid=%s\r\n\r\n" % (token, sessionid)
-print("GET REquest", GET_request)
+#print("GET REquest", GET_request)
 s.send(GET_request.encode("ascii"))
 
 resp = s.recv(4096)
-print("fdsfds", resp.decode("ascii"), "fdsfds")
+s.shutdown(socket.SHUT_RDWR)
+s.close()
 
+resp = resp.decode("ascii") 
+
+def determineLinks(resp):
+    pieces = resp.split("href")
+    potentialLinks = []
+    for val in pieces:
+        if "fakebook" in val:
+            val = val.split('"')
+            val = val[1] 
+            if val not in totalLinks:
+                potentialLinks.append(val)
+                totalLinks.append(val)
+                #print(potentialLinks)
+    return potentialLinks
+
+def contactLinks(potentialLinks):
+    totalLinks = []
+    for val in potentialLinks: 
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        host_ip = socket.gethostbyname('www.3700.network')
+        s.connect((host_ip, 80))
+        GET_request = "GET %s HTTP/1.1\r\nHost: www.3700.network\r\nCookie: csrftoken=%s; sessionid=%s\r\n\r\n" % (val, token, sessionid)
+        s.send(GET_request.encode("ascii"))
+        resp = s.recv(4096)
+        s.shutdown(socket.SHUT_RDWR)
+        s.close()
+        resp = resp.decode("ascii")
+        code = resp.split("\n")[0]
+        while "500" in code: 
+            #print(code) 
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            host_ip = socket.gethostbyname('www.3700.network')
+            s.connect((host_ip, 80))
+            GET_request = "GET %s HTTP/1.1\r\nHost: www.3700.network\r\nCookie: csrftoken=%s; sessionid=%s\r\n\r\n" % (val, token, sessionid)
+            s.send(GET_request.encode("ascii"))
+            resp = s.recv(4096)
+            s.shutdown(socket.SHUT_RDWR)
+            s.close()
+            resp = resp.decode("ascii")
+            code = resp.split("\n")[0]
+            #print(code)
+        if "302" in code: 
+            respList = resp.split("\n")
+            for val in respList: 
+                if val.startswith("Location:"):
+                    val = val.split(" ")[1].strip()
+                    return contactLinks(val)
+        if "<h2 class='secret_flag' style=\"color:red\">FLAG" in resp: 
+            #print("FLAG IS FOUNDDDDDDDDDDDDDDDDDDDDDDD") 
+            resp2 = resp.split("<h2 class='secret_flag' style=\"color:red\">FLAG")
+            flags.append(resp2[1][2:66])
+            print(resp2[1][2:66])
+            if len(flags) == 5:
+                exit() 
+        links = determineLinks(resp)
+        totalLinks.extend(links)
+    return totalLinks
+
+def callCrawls(links):
+    links = contactLinks(links)
+    if len(flags) < 5: 
+        callCrawls(links)
+        print(len(flags))
+    if len(flags) == 5: 
+        print("YOU STUPID THING WE HAVE ALL THE FLAGS") 
+
+origLinks = determineLinks(resp)
+callCrawls(origLinks)
