@@ -72,11 +72,12 @@ def determineLinks(resp):
     for val in pieces:
         if "fakebook" in val:
             val = val.split('"')
-            val = val[1] 
-            if val not in totalLinks:
-                potentialLinks.append(val)
-                totalLinks.append(val)
-                #print(potentialLinks)
+            if len(val) > 1:
+                val = val[1] 
+                if val not in totalLinks:
+                    potentialLinks.append(val)
+                    totalLinks.append(val)
+                    #print(potentialLinks)
     return potentialLinks
 
 def contactLinks(potentialLinks):
